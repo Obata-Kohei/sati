@@ -26,6 +26,13 @@ TIME_FORMAT_CSV = "%Y-%m-%dT%H:%M:%SZ"
 TIME_FORMAT_FILENAME = "%Y%m%d%H%M%SZ"
 
 
+# ===== ユーティリティ =====
+# 現在のTLEから衛星のオブジェクトを作成
+def curr_sat(name: str) -> EarthSatellite:
+    sat_list = load.tle('https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=tle')
+    return sat_list[name]
+
+
 # ======== DataField / Fields ========
 class DataField(str):
     """
@@ -292,7 +299,7 @@ def record(
 
     Args:
     sat (skyfield.sgp4lib.EarthSatellite): 衛星の変数
-    bits (int): 出力項目のビット指定。0-255の値。
+    bits (int): 出力項目のビット指定。0-255の値。DATETIME, GLAT, GLON, ALT_KM, SUNLIT, MLAT, MLT, Lの順番
     ts (skyfield.timelib.Timescale): タイムスケール。skyfield.api.load.timescale()を入れる。初期値はNone
     t0: (datetime): 計算開始する日付と時刻 (UTC)。
     t1: (datetime): 計算終了する日付と時刻 (UTC)。
@@ -342,7 +349,7 @@ def record(
     return df
 
 
-def csv_of_record(
+def csv_from_record(
         sat: EarthSatellite,
         bits: int,
         ts: skyfield.timelib.Timescale,
