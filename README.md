@@ -1,6 +1,12 @@
 # sati: Sati is an Analysis Toolset for Impact
 
 衛星軌道の解析のために作ったプログラムのうち，中核部分の関数をまとめた．
+これを使って実際に解析した結果は，べつのprivateレポジトリに保存している．
+Pythonの仮想環境の管理のために`uv`を使用している．
+`git clone git@github.com:Obata-Kohei/sati.git`
+したのちに，
+`uv sync`
+とすることでPythonのバージョンや必要なパッケージが取得される．
 
 [TOC]
 
@@ -49,11 +55,12 @@ def record(
 
 使用例を以下に示す:
 ```Python
+import sati
 from datetime import datetime, timedelta
 from skyfield.api import load, utc, EarthSatellite
 
 sat_list = load.tle('https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=tle')
-sat = sat_list[name]
+sat = sat_list['ISS (ZARYA)']
 bits = 0b11110111
 ts = load.timescale()
 
@@ -63,6 +70,9 @@ dt = timedelta(seconds=10)
 
 rec = sati.record(sat, bits, ts, t0, t1, dt, method="AACGM")
 ```
+
+このコードでは，国際宇宙ステーション(ISS (ZARYA))の軌道を計算してrecordに格納している．
+期間は2025-08-01T00:00:00Zから1日分，時間分解能は10 s，日照以外の数値をここでは計算している．
 
 注意点を述べる:
 - skyfieldライブラリのEarthSatelliteオブジェクトを作成する方法は複数ある．sati.curr_sat()でも作れるようにしてある
@@ -74,8 +84,7 @@ recordから派生した関数を示す．
 - `csv_from_record`
 - `record_from_csv`
 
----
-
+#### csv_from_record
 `csv_from_record`はrecordの出力をcsvに保存することに特化した関数である．
 長期間にわたる衛星軌道を計算したかったり，時間分解能dtを短くしすぎたりした時に，recordのデータ量やメモリ使用量は莫大なものになる場合がある．
 また，計算時間も長くなるため非常に面倒．
@@ -109,8 +118,7 @@ def csv_from_record(
     """
 ```
 
----
-
+#### record_from_csv
 `record_from_csv`は，csvに保存したrecordを読み込むための関数である．
 巨大なrecordを読み込むことを前提としているため，csvはチャンクごとに読み込まれ，関数の返り値はイテレータである．(pd.read_csv()を参照)
 `record_from_csv`の引数を以下に示す:
@@ -177,5 +185,87 @@ def timeline(
     """
 ```
 
+使用例を以下に示す:
+```Python
+import sati
+from datetime import datetime, timedelta
+from skyfield.api import load, utc, EarthSatellite
 
+sat_list = load.tle('https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=tle')
+sat = sat_list['ISS (ZARYA)']
+bits = 0b11110111
+ts = load.timescale()
 
+t0 = datetime(2025, 8, 1, tzinfo=utc)
+t1 = t0 + timedelta(days=1)
+dt = timedelta(seconds=10)
+
+rec = sati.record(sat, bits, ts, t0, t1, dt, method="AACGM")
+tl = sati.timeline(rec, rec["MLT"] < 12)
+```
+
+このコードでは，recordのサンプルコードと同様にrecordを作成したあと，MLTが12時より前という条件を課してtimelineを作成している．
+
+### timelineの派生関数
+timelineから派生した関数を以下に示す．
+
+- timeline_stream
+- passtime
+
+#### timeline_stream
+recordを`record_from_csv`から読み込むなどして，recordがイテレータになっている場合にこれを使う．
+この関数内でrecordのイテレータは消費されることに注意．(この関数に渡したrecordのイテレータはもう使えない)
+
+`timeline_stream`の引数を以下に示す．
+```Python
+def timeline_stream(
+    rec_iter,
+    cond_func,
+    #save_csv: bool=False
+):
+    """
+    record DataFrame の iterator を受け取り、
+    条件を満たす時間帯を逐次抽出する。
+    大きなcsvからrecordを読み込んだ時はこれを使ってtimelineを抽出
+    出力timelineも大きくなるかも？
+
+    Args:
+        rec_iter: Iterable[pd.DataFrame]
+        cond_func: Callable[[pd.DataFrame], pd.Series]
+            例: lambda df: df["foo"] < 999
+
+    Returns:
+        pd.DataFrame (timeline)
+    """
+```
+
+#### passtime
+衛星の可視時間をtimeline形式などで出力する．
+
+`passtime`の引数を以下に示す．
+```Python
+def passtime(sat: skyfield.sgp4lib.EarthSatellite,
+            ts: skyfield.timelib.Timescale,
+            t0: datetime, t1: datetime,
+            pos: skyfield.toposlib.GeographicPosition,
+            min_elevation_deg: float=Fields.Attrs.MINEL.value,
+            to_timeline: bool=False,
+            save_csv: bool=False) -> pd.DataFrame:
+    """
+    衛星のAOS, 最大仰角, LOSの時刻のdata frameを返す
+
+    Args:
+        sat (skyfield.sgp4lib.EarthSatellite): 衛星の変数
+        pos (skyfield.toposlib.GeographicPosition): 観測地点。wgs84.latlon(glat_deg, glon_deg, elev_km)を入れる
+        min_elevation_deg (float): 可視とみなす最小の仰角。デフォルト5 deg
+        t0 (datetime): どの時刻からパスを計算するか
+        t1 (datetime): どの時刻までパスを計算するか
+        timescale (skyfield.timelib.Timescale): タイムスケール。skyfield.api.load.timescale()を入れる。
+        to_timeline (bool): timeline形式にするか。つまりAOS->START, LOS->ENDにするか
+        save_csv (bool): CSVファイルを保存するか。初期値はFalse
+    Returns:
+        pd.DataFrame: AOS, 最大仰角, LOS時刻を記したdata frame
+    """
+```
+
+`pos`に入れるのは，

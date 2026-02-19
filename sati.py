@@ -289,7 +289,7 @@ def record(
         t0: datetime,
         t1: datetime,
         dt: timedelta,
-        method=Fields.Method.AACGM.name,
+        method=Fields.Method.AACGM,
         save_csv: bool = False
 ) -> pd.DataFrame:
     """
@@ -539,7 +539,7 @@ def timeline_stream(
     open_start = None
 
     for rec in rec_iter:
-        dt_col = Fields.Record.DATETIME.name
+        dt_col = Fields.Record.DATETIME
         cond = cond_func(rec).astype(bool)
 
         for t, c in zip(rec[dt_col], cond):
@@ -550,8 +550,8 @@ def timeline_stream(
             elif not c and prev_cond:
                 # True → False（終了）
                 results.append({
-                    Fields.TimeLine.START.name: open_start,
-                    Fields.TimeLine.END.name: t,
+                    Fields.TimeLine.START: open_start,
+                    Fields.TimeLine.END: t,
                 })
                 open_start = None
 
@@ -560,15 +560,15 @@ def timeline_stream(
     # ファイル末尾まで True が続いた場合
     if open_start is not None:
         results.append({
-            Fields.TimeLine.START.name: open_start,
-            Fields.TimeLine.END.name: t,  # 最後に見た時刻
+            Fields.TimeLine.START: open_start,
+            Fields.TimeLine.END: t,  # 最後に見た時刻
         })
 
     df = pd.DataFrame(results)
 
     if not df.empty:
-        df[Fields.TimeLine.DURATION_SEC.name] = (
-            df[Fields.TimeLine.END.name] - df[Fields.TimeLine.START.name]
+        df[Fields.TimeLine.DURATION_SEC] = (
+            df[Fields.TimeLine.END] - df[Fields.TimeLine.START]
         ).dt.total_seconds()
 
     return df
