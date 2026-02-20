@@ -268,4 +268,4 @@ def passtime(sat: skyfield.sgp4lib.EarthSatellite,
     """
 ```
 
-`pos`に入れるのは，
+(`pos`に入れるのは，`wgs84.latlon(36.543973, 136.705172, 115)`とすることが大半かと思います．これは地上局の位置です．)
