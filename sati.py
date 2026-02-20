@@ -1,3 +1,4 @@
+import math
 import os
 import logging
 import re
@@ -31,6 +32,45 @@ TIME_FORMAT_FILENAME = "%Y%m%d%H%M%SZ"
 def curr_sat(name: str) -> EarthSatellite:
     sat_list = load.tle('https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=tle')
     return sat_list[name]
+
+# EarthSatelliteから衛星周期を得る
+def get_period_sec(sat: EarthSatellite):
+    """
+    衛星の周期を返す。単位はsec
+    """
+    mean_motion_rad_per_min = sat.model.no_kozai  # [rad/min]
+    period_min = 2 * np.pi / mean_motion_rad_per_min
+    period_sec = period_min * 60.0
+    return period_sec
+
+# 高度(km)から平均運動(mean motion)を得る
+def get_mean_motion_from_altitude(alt_km):
+    """
+    高度[km]から平均運動[rev/day]を求める（円軌道仮定）
+    円軌道である場合にのみこれは有効
+    """
+    MU = 398600.4418  # [km^3/s^2]
+    R_E = 6378.137  # [km]
+
+    a = R_E + alt_km
+    n_rad_s = math.sqrt(MU / a**3)
+    n_rev_day = n_rad_s / (2 * math.pi) * 86400.0
+    return n_rev_day
+
+# LTANからRAANをもとめる
+def raan_from_ltan(ltan_hour: float, sun_ra_deg: float) -> float:
+    """
+    LTAN[hour]と太陽赤経[deg]からRAAN[deg]を求める
+    時刻tでの太陽赤経:
+    eph = load('de421.bsp')
+    earth = eph['earth']
+    sun = eph['sun']
+
+    astrometric = earth.at(t).observe(sun)
+    ra, dec, distance = astrometric.radec()
+    """
+    raan = sun_ra_deg + 15.0 * ltan_hour
+    return raan % 360.0
 
 
 # ======== DataField / Fields ========

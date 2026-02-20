@@ -3,6 +3,7 @@
 衛星軌道の解析のために作ったプログラムのうち，中核部分の関数をまとめた．
 これを使って実際に解析した結果は，べつのprivateレポジトリに保存している．
 Pythonの仮想環境の管理のために`uv`を使用している．
+uvの使い方は以下:
 `git clone git@github.com:Obata-Kohei/sati.git`
 したのちに，
 `uv sync`
@@ -72,7 +73,8 @@ rec = sati.record(sat, bits, ts, t0, t1, dt, method="AACGM")
 ```
 
 このコードでは，国際宇宙ステーション(ISS (ZARYA))の軌道を計算してrecordに格納している．
-期間は2025-08-01T00:00:00Zから1日分，時間分解能は10 s，日照以外の数値をここでは計算している．
+期間は2025-08-01T00:00:00Zから1日分，時間分解能は10 sである．
+日照以外の数値をここでは計算している．
 
 注意点を述べる:
 - skyfieldライブラリのEarthSatelliteオブジェクトを作成する方法は複数ある．sati.curr_sat()でも作れるようにしてある
@@ -269,3 +271,27 @@ def passtime(sat: skyfield.sgp4lib.EarthSatellite,
 ```
 
 (`pos`に入れるのは，`wgs84.latlon(36.543973, 136.705172, 115)`とすることが大半かと思います．これは地上局の位置です．)
+
+## Tips
+### グラフの描画
+- 以下のようにしてmatplotlibの文字サイズや図のサイズ，DPIを設定しておくのが吉．
+```Python
+plt.rcParams.update({
+    "font.size": 18,          # 基本フォントサイズ
+    "axes.titlesize": 18,     # axes のタイトル
+    "axes.labelsize": 18,     # x/y ラベル
+    "xtick.labelsize": 16,    # x 軸目盛
+    "ytick.labelsize": 16,    # y 軸目盛
+    "legend.fontsize": 16,    # 凡例
+    "figure.titlesize": 8,   # suptitle
+})
+
+figure_size = (12, 8)
+dpi = 300
+```
+
+- 図内の文字が小さくならないように気を付ける
+- 横軸，縦軸のラベルは単位も含めて忘れずつける
+- 凡例をつける
+
+### 
